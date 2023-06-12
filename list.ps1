@@ -1,14 +1,10 @@
-$policyAssignments = az policy assignment list --query "[?contains(displayName, 'BaringsCCP')].[displayName, description, enforcementMode, scope, excludedScopes, parametersEffectValue]" --output json | ConvertFrom-Json
+$assignmentName = "ASC Default" # Specify the assignment name you want to filter
 
-$formattedAssignments = if ($policyAssignments) {
-    $policyAssignments | ForEach-Object {
-        $_.displayName = $_.displayName ?? "N/A"
-        $_.description = $_.description ?? "N/A"
-        $_.scope = $_.scope ?? "N/A"
-        $_.enforcementMode = $_.enforcementMode ?? "N/A"
-        $_.excludedScopes = $_.excludedScopes ?? "N/A"
-        $_
-    }
+$policyAssignments = az policy assignment list --output json | ConvertFrom-Json
+$filteredAssignments = $policyAssignments | Where-Object { $_.displayName -match $assignmentName }
+
+$formattedAssignments = if ($filteredAssignments) {
+    $filteredAssignments
 } else {
     [PSCustomObject]@{
         displayName = "N/A"
@@ -20,5 +16,15 @@ $formattedAssignments = if ($policyAssignments) {
 }
 
 $headers = "DisplayName", "Description", "Scope", "EnforcementMode", "ExcludedScopes"
-$table = $formattedAssignments | Format-Table -Property $headers -AutoSize | Out-String
+$tableRows = $formattedAssignments | ForEach-Object {
+    [PSCustomObject]@{
+        DisplayName = $_.displayName ?? "N/A"
+        Description = $_.description ?? "N/A"
+        Scope = $_.scope ?? "N/A"
+        EnforcementMode = $_.enforcementMode ?? "N/A"
+        ExcludedScopes = $_.excludedScopes ?? "N/A"
+    }
+}
+
+$table = $tableRows | Format-Table -AutoSize | Out-String
 Write-Output $table

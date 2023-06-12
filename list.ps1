@@ -1,4 +1,4 @@
-$policyAssignments = az policy assignment list --query "[?contains(displayName, 'BaringsCCP')].[displayName, description, enforcementMode, scope, excludedScopes, parametersEffectValue]" --output json | ConvertFrom-Json
+$policyAssignments = az policy assignment list --query "[?contains(displayNam'NSP')].[displayName, description, enforcementMode, scope, excludedScopes, parametersEffectValue]" --output json | ConvertFrom-Json
 
 $formattedAssignments = if ($policyAssignments) {
     $policyAssignments | ForEach-Object {

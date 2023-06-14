@@ -1,30 +1,77 @@
-$assignmentName = "ASC Default" # Specify the assignment name you want to filter
+function email_error() {
+    param(
+        $err1,
+        $emailFrom,
+        $emailTo,
+        $emailSubject,
+        $smtpServer,
+        $smtpPort,
+        $smtpUsername,
+        $smtpPassword
+    )
 
-$policyAssignments = az policy assignment list --output json | ConvertFrom-Json
-$filteredAssignments = $policyAssignments | Where-Object { $_.displayName -match $assignmentName }
+    # Default email body
+    $emailBody = @"
+        <html>
+        <body>
+            <h2>Policy Assignment Data</h2>
+            <table cellpadding='5' cellspacing='0' border='1'>
+                <tr>
+                    <th>Display Name</th>
+                    <th>Assignment Scope</th>
+                    <th>Description</th>
+                    <th>Excluded Scopes</th>
+                </tr>
+                $err1
+            </table>
+        </body>
+        </html>
+"@
 
-$formattedAssignments = if ($filteredAssignments) {
-    $filteredAssignments
-} else {
-    [PSCustomObject]@{
-        displayName = "N/A"
-        description = "N/A"
-        scope = "N/A"
-        enforcementMode = "N/A"
-        excludedScopes = "N/A"
-    }
+    # Send the email
+    Send-MailMessage -From $emailFrom -To $emailTo -Subject $emailSubject -Body $emailBody -BodyAsHtml -SmtpServer $smtpServer -Port $smtpPort -Credential (New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $smtpUsername, (ConvertTo-SecureString -String $smtpPassword -AsPlainText -Force))
 }
 
-$headers = "DisplayName", "Description", "Scope", "EnforcementMode", "ExcludedScopes"
-$tableRows = $formattedAssignments | ForEach-Object {
-    [PSCustomObject]@{
-        DisplayName = $_.displayName ?? "N/A"
-        Description = $_.description ?? "N/A"
-        Scope = $_.scope ?? "N/A"
-        EnforcementMode = $_.enforcementMode ?? "N/A"
-        ExcludedScopes = $_.excludedScopes ?? "N/A"
+# Email details
+$EmailFrom = "hello@abc.com"
+$EmailTo = "ankur51206@gmail.com"
+$EmailSubject = "Policy Assignment Report"
+$SMTPServer = "smtp.sendgrid.net"
+$SMTPPort = 587
+$SMTPUsername = "apikey"
+$SMTPPassword = "smtppasshere"
+
+$policyAssignments = az policy assignment list --query "[?contains(displayName, 'Testing')]" --output json | ConvertFrom-Json
+
+# Create empty array to store policy assignment data
+$policyAssignmentData = @()
+$message = ""
+
+# Loop through each policy assignment and extract the relevant data
+foreach ($assignment in $policyAssignments) {
+    $displayName = $assignment.displayName
+    $assignmentScope = $assignment.scope
+    $description = $assignment.description
+    $excludedScopes = $assignment.excludedScopes
+
+    # Add the policy assignment data to the array
+    $policyAssignmentData += [PSCustomObject]@{
+        DisplayName = $displayName
+        AssignmentScope = $assignmentScope
+        Description = $description
+        ExcludedScopes = $excludedScopes 
     }
+
+    # Append the data to the email message
+    $message += @"
+        <tr>
+            <td>$displayName</td>
+            <td>$assignmentScope</td>
+            <td>$description</td>
+            <td>$excludedScopes</td>
+        </tr>
+"@
 }
 
-$table = $tableRows | Format-Table -AutoSize | Out-String
-Write-Output $table
+# Call the email_error function with the email details
+email_error -err1 $message -emailFrom $EmailFrom -emailTo $EmailTo -emailSubject $EmailSubject -smtpServer $SMTPServer -smtpPort $SMTPPort -smtpUsername $SMTPUsername -smtpPassword $SMTPPassword
